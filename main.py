@@ -6,4 +6,3 @@ omobot = discord.Client()
 
 
 
-omobot.run('')
