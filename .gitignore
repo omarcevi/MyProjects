@@ -3,3 +3,4 @@
 *.db-journal
 __pychache__
 lib/omobot/token.0
+*.vscode
