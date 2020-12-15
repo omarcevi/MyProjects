@@ -2,3 +2,4 @@
 *.db
 *.db-journal
 __pychache__
+lib/omobot/token.0
