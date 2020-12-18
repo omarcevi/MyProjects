@@ -1,29 +1,46 @@
+from random import choice, randint
 from typing import Optional
 
 from aiohttp import request
 from discord import Member, Embed
 
-from discord.ext.commands import Cog
-from discord.ext.commands import command
+from discord.ext.commands import Cog, BucketType
+from discord.ext.commands import command, cooldown
 
 class Fun(Cog):
     def __init__(self, omobot):
         self.omobot = omobot
 
-    @command(name="merhaba", aliases= ['selam', 'sa', 'slm'], hidden= True, pass_context= False)
+    @command(name="merhaba", aliases= ['selam', 'sa', 'slm'], brief="Hello", hidden= True, pass_context= False)
     async def say_hello(self, ctx):
         await ctx.send(f"Merhaba, {ctx.author.mention}! beeb boop")
 
-    @command(name="hug", aliases=["sarıl"])
+    @command(name='dice', brief="Dice", aliases= ['zar'])
+    @cooldown(1, 60, BucketType.user)
+    async def roll_dice(self, ctx, die_string: str):
+        """Throw a dice"""
+        dice, value = (int(term) for term in die_string.split("d"))
+
+        if dice <= 25:
+            rolls = [randint(1, value) for i in range(dice)] 
+            
+            await ctx.send("+".join([str(r) for r in rolls]) + f" = {sum(rolls)}")
+
+        else:
+            await ctx.send("I can't roll that many dice. Please try a lower number.")
+
+    @command(name="hug", aliases=["sarıl"], brief= "Hug")
     async def hug_member(self, ctx, member: Member, *, reason: Optional[str] = "for no reason"):
 	    await ctx.send(f"{ctx.author.display_name} hugged {member.mention} {reason}!")
 
-    @command(name="echo", aliases= ['say'])
+    @command(name="echo", aliases= ['say'], brief="Echo")
+    @cooldown(1, 15, BucketType.guild)
     async def echo_message(self, ctx, *, message):
         await ctx.message.delete()
         await ctx.send(message)
 
-    @command(name="fact")
+    @command(name="fact", brief="Animal fact")
+    @cooldown(3, 60, BucketType.guild)
     async def animal_fact(self, ctx, animal: str):
         if (animal := animal.lower()) in ("dog", "cat", "panda", "fox", "bird", "koala"):
             fact_url = f"https://some-random-api.ml/facts/{animal}"
@@ -58,7 +75,7 @@ class Fun(Cog):
     async def meme_post(self, ctx):
         pass
 
-    
+
 
     @Cog.listener()
     async def on_message(self, message):

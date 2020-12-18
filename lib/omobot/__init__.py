@@ -9,15 +9,20 @@ from apscheduler.triggers.cron import CronTrigger
 from discord import Embed, Intents, File
 from discord.errors import HTTPException, Forbidden
 from discord.ext.commands import Bot as BotBase 
-from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument)
 from discord.ext.commands import Context
-
+from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument,
+                                  CommandOnCooldown)
+from discord.ext.commands import when_mentioned_or, command, has_permissions
 from ..db import db
 
-PREFIX = '-'
+
 OWNER_IDS = [366292325078532106]
-COGS = [path.split("\\")[-1][:3] for path in glob('./lib/cogs/*.py')]
+COGS = [path.split("\\")[-1][:-3] for path in glob("./lib/cogs/*.py")]
 IGNORE_EXCEPTIONS = (CommandNotFound, BadArgument)
+
+def get_prefix(bot, message):
+    prefix = db.field("SELECT Prefix FROM guilds WHERE GuildID =?", message.guild.id)
+    return when_mentioned_or(prefix)(bot, message)
 
 
 class Ready(object):
@@ -27,7 +32,7 @@ class Ready(object):
 
     def ready_up(self, cog):
         setattr(self, cog, True)
-        print(f"{cog} cog ready")
+        print(f" {cog} cog ready")
     
     def all_ready(self):
         return all([getattr(self, cog) for cog in COGS])
@@ -38,7 +43,6 @@ class Ready(object):
 
 class OMOBot(BotBase):
     def __init__(self):
-        self.PREFIX = PREFIX
         self.ready = False
         self.cogs_ready = Ready()
         self.guild = False
@@ -46,7 +50,7 @@ class OMOBot(BotBase):
 
         db.autosave(self.scheduler)
         super().__init__(
-            command_prefix= PREFIX, 
+            command_prefix= get_prefix, 
             owner_ids= OWNER_IDS,
             intents = Intents.all()
             )
@@ -54,7 +58,7 @@ class OMOBot(BotBase):
     def setup(self):
         for cog in COGS:
             self.load_extension(f"lib.cogs.{cog}")
-            print(f"{cog} cog loaded")
+            print(f" {cog} cog loaded")
 
         print("Setup complete!")
 
@@ -100,7 +104,7 @@ class OMOBot(BotBase):
         if err == "on_command_error":
             await args[0].send("Something went wrong!")
         
-        await self.stdout.send('OMOBot Online!')
+        await self.stdout.send('An error occured.')
         raise 
 
 
@@ -110,12 +114,19 @@ class OMOBot(BotBase):
 
         elif isinstance(exc, MissingRequiredArgument):
             await ctx.send("One or more required arguments is missing")
+
+        elif isinstance(exc, CommandOnCooldown):
+           await ctx.send(f"That command is on {str(exc.cooldown.type).split('.')[-1]} Try again in {exc.retry_after:,.2f} secs.")
             
-        elif isinstance(exc.original, HTTPException):
-            await ctx.send("Unable to send message.")
-        
-        elif isinstance(exc.original, Forbidden):
-            await ctx.send("I do not have permission to do that.")
+        elif hasattr(exc, 'original'):
+            #if isinstance(exc.original, HTTPException):
+            #await ctx.send("Unable to send message.")
+            
+            if isinstance(exc.original, Forbidden):
+                await ctx.send("I do not have permission to do that.")
+
+            else:
+                raise exc.original
 
         else:
             raise exc
@@ -126,7 +137,7 @@ class OMOBot(BotBase):
             self.guild = self.get_guild(785445213442932736)
             self.stdout = self.get_channel(788470589421649920)
             self.genchan = self.get_channel(785445213442932739)
-            self.scheduler.add_job(self.love_reminder, CronTrigger(minute='0, 15, 30, 45', second='0'))
+            self.scheduler.add_job(self.love_reminder, CronTrigger(minute='0, 30', second='0'))
             self.scheduler.start()
            
            
