@@ -6,16 +6,18 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 
-from discord import Intents
-from discord import Embed
+from discord import Embed, Intents, File
+from discord.errors import HTTPException, Forbidden
 from discord.ext.commands import Bot as BotBase 
-from discord.ext.commands import CommandNotFound
+from discord.ext.commands import (CommandNotFound, BadArgument, MissingRequiredArgument)
+from discord.ext.commands import Context
 
 from ..db import db
 
 PREFIX = '-'
 OWNER_IDS = [366292325078532106]
 COGS = [path.split("\\")[-1][:3] for path in glob('./lib/cogs/*.py')]
+IGNORE_EXCEPTIONS = (CommandNotFound, BadArgument)
 
 
 class Ready(object):
@@ -68,9 +70,22 @@ class OMOBot(BotBase):
         print('OMOBot is running...')
         super().run(self.TOKEN, reconnect= True)
         
+    async def process_commands(self, message):
+        ctx = await self.get_context(message, cls= Context)
 
-    async def print_message(self):
-        await self.stdout.send('OMOBot timed notification!')
+        if ctx.command is not None and ctx.guild is not None:
+            if self.ready:
+                await self.invoke(ctx)
+
+            else:
+                await ctx.send("I'm not ready to recieve commands yet please wait a few seconds.")
+
+    """async def print_message(self):
+        #await self.stdout.send('OMOBot timed notification!')
+        pass"""
+
+    async def love_reminder(self):
+        await self.genchan.send("'Hepiniz seviliyorsunuz' -Omos")
 
 
     async def on_connect(self):
@@ -86,16 +101,21 @@ class OMOBot(BotBase):
             await args[0].send("Something went wrong!")
         
         await self.stdout.send('OMOBot Online!')
-
         raise 
 
 
     async def on_command_error(self, ctx, exc):
-        if isinstance(exc, CommandNotFound):
+        if any([isinstance(exc,  error) for error in IGNORE_EXCEPTIONS]):
             pass
 
-        elif hasattr(exc, "original"):
-            raise exc.original
+        elif isinstance(exc, MissingRequiredArgument):
+            await ctx.send("One or more required arguments is missing")
+            
+        elif isinstance(exc.original, HTTPException):
+            await ctx.send("Unable to send message.")
+        
+        elif isinstance(exc.original, Forbidden):
+            await ctx.send("I do not have permission to do that.")
 
         else:
             raise exc
@@ -105,12 +125,12 @@ class OMOBot(BotBase):
         if not self.ready:
             self.guild = self.get_guild(785445213442932736)
             self.stdout = self.get_channel(788470589421649920)
-            self.scheduler.add_job(self.print_message, CronTrigger(second= '0, 15, 30, 45'))
+            self.genchan = self.get_channel(785445213442932739)
+            self.scheduler.add_job(self.love_reminder, CronTrigger(minute='0, 15, 30, 45', second='0'))
             self.scheduler.start()
-            
-            channel = self.get_channel(788470589421649920)
-
-
+           
+           
+           
             #embed = Embed(title= "Now Online!", description= "OMOBot is now Online and ready",
             #            colour=0xFF0000, timestamp=datetime.utcnow())
 
@@ -140,7 +160,11 @@ class OMOBot(BotBase):
             print('OMOBot is back')
 
     async def on_message(self, message):
-        pass
+        if not message.author.bot:
+            await self.process_commands(message)
+
+    
+    
 
 omobot = OMOBot()
 
