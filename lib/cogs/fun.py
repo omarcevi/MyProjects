@@ -81,7 +81,12 @@ class Fun(Cog):
     async def on_message(self, message):
         if not message.author.bot:
             if "hmmm" in message.content:
-                await message.channel.send(f"Ne düşünüyorsun acaba {message.author.mention}?! beeb boop")
+                hmmm_response = ["Ne düşünüyorsun acaba", "Kim bilir a kafada neler önüyor", "Kafadan dumanlar mı çıkıyor"]
+                await message.channel.send(f"{choice(hmmm_response)} {message.author.mention}?! beeb boop")
+
+            elif "dimi omobot" in message.content:
+                dimi_response = ["Kesinlikle katılıyorum efendim", "aynen", "Sensörlerimden veriler öyle gösteriyor"]
+                await message.channel.send(f"{choice(dimi_response)} {message.author.mention} beeb boop")
 
     @Cog.listener()
     async def on_ready(self):
