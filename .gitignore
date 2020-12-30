@@ -1,6 +1,6 @@
 *.env
 *.db
 *.db-journal
-__pychache__
+__pycache__
 lib/omobot/token.0
 *.vscode

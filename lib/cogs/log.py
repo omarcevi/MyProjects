@@ -12,7 +12,7 @@ class Log(Cog):
 	@Cog.listener()
 	async def on_ready(self):
 		if not self.omobot.ready:
-			self.log_channel = self.omobot.get_channel(788470589421649920)
+			self.log_channel = self.omobot.get_channel(790558270603395072)
 			self.omobot.cogs_ready.ready_up("log")
 
 	@Cog.listener()
