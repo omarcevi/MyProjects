@@ -2,12 +2,15 @@ from asyncio import sleep
 from typing import Optional
 from datetime import datetime, timedelta
 
+from better_profanity import profanity
 from discord import Embed, Member
 from discord.ext.commands import Cog, Greedy
 from discord.ext.commands import CheckFailure
 from discord.ext.commands import command, has_permissions, bot_has_permissions
 
 from ..db import db
+
+profanity.load_censor_words_from_file("./data/profanity.txt")
 
 class Mod(Cog):
     def __init__(self, omobot):
@@ -112,7 +115,7 @@ class Mod(Cog):
     async def mute_members(self, ctx, targets: Greedy[Member], hours: Optional[int], *, 
                            reason: Optional[str] = "No reason provided."):
         if not len(targets):
-            await ctx.send("One or more required arguments is missing")
+            await ctx.send("One or more required arguments is missing.")
 
         else:
             unmutes = []
@@ -121,7 +124,7 @@ class Mod(Cog):
                 if not self.mute_role in target.roles:
                     if ctx.guild.me.top_role.position > target.top_role.position:
                         role_ids = ",".join([str(r.id) for r in target.roles])
-                        end_time = datetime.utcnow() + timedelta(seconds=hours) if hours else None
+                        end_time = datetime.utcnow() + timedelta(seconds=hours*3600) if hours else None
 
                         db.execute("INSERT INTO mutes VALUES (?,?,?)", 
                                    target.id, role_ids, getattr(end_time, "isoformat", lambda: None)())
@@ -196,12 +199,43 @@ class Mod(Cog):
         else:
             await self.unmute(ctx, targets, reason=reason)
 
+    @command(name="addprofanity", aliases= ['addswears', 'addcurses', 'kufurekle'])
+    @has_permissions(manage_guild= True)
+    async def add_profanity(self, ctx, *words):
+        with open("./data/profanity.txt", "a", encoding="utf-8") as f:
+            f.write("".join([f"{w}\n" for w in words]))
+
+        profanity.load_censor_words_from_file("./data/profanity.txt")
+        await ctx.send("Action complete.")
+
+    @command(name= "delprofanity", aliases= ['delswears', 'delcurses', 'kufurcikar'])
+    @has_permissions(manage_guild= True)
+    async def remove_profanity(self, ctx, *words):
+        with open("./data/profanity.txt", "r", encoding="utf-8") as f:
+            stored = [w.strip() for w in f.readlines()]
+            
+        with open("./data/profanity.txt", "w", encoding="utf-8") as f:
+            f.write("".join([f"{w.strip()}\n" for w in stored if w not in words]))
+    
+        profanity.load_censor_words_from_file("./data/profanity.txt")
+        await ctx.send("Action complete.")
+
+    
     @Cog.listener()
     async def on_ready(self):
         if not self.omobot.ready:
             self.log_channel = self.omobot.get_channel(790558270603395072)
-            #self.mute_role = self.omobot.guild.get_role() # you need to put the mute role ID here
+            self.mute_role = self.omobot.guild.get_role(793902458912899083) # you need to put the mute role ID here
             self.omobot.cogs_ready.ready_up("mod")
+
+
+    @Cog.listener()
+    async def on_message(self, message):
+        if not message.author.bot:
+            if profanity.contains_profanity(message.content):
+                await message.delete()
+                await message.channel.send(f"Hey {message.author.mention}, you cant use that word around here!")
+        
 
     
 def setup(omobot):
